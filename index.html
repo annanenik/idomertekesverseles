@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Időmértékes Verselés Mester – 1. sor elemzése</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Lora:ital,wght@0,500;0,600;1,400&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Nunito', sans-serif;
+      background-color: #fbf8f1;
+      background-image: 
+        radial-gradient(#dfd4bd 1.2px, transparent 1.2px),
+        linear-gradient(to bottom, #fffefb, #f6eee0);
+      background-size: 22px 22px, 100% 100%;
+    }
+    .font-renaissance {
+      font-family: 'Cinzel', serif;
+    }
+    .font-verse {
+      font-family: 'Lora', serif;
+    }
+    .parchment-card {
+      background: #ffffff;
+      border: 2px solid #ecd8b8;
+      box-shadow: 0 12px 30px -8px rgba(120, 60, 20, 0.12), 0 4px 12px -2px rgba(120, 60, 20, 0.06);
+    }
+    
+    /* Betűk stílusa - szigorúan egy sorban tartva */
+    .char-box {
+      min-width: 1.35rem;
+      height: 2.85rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Lora', serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #3b200d;
+      user-select: none;
+      flex-shrink: 0;
+    }
+    /* 3 szóköznyi természetes térköz */
+    .word-spacer {
+      width: 2rem;
+      height: 2.85rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      user-select: none;
+      flex-shrink: 0;
+    }
+    /* Kattintható vágópont */
+    .cut-slot {
+      width: 1.05rem;
+      height: 2.85rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s ease;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .cut-slot:hover {
+      background: rgba(217, 119, 6, 0.25);
+    }
+    .cut-marker-line {
+      width: 3px;
+      height: 85%;
+      background-color: transparent;
+      border-radius: 2px;
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .cut-slot.active .cut-marker-line {
+      background-color: #b45309;
+      box-shadow: 0 0 8px rgba(180, 83, 9, 0.6);
+      transform: scaleY(1.1);
+      width: 4px;
+    }
+    .cut-slot.correct .cut-marker-line {
+      background-color: #059669 !important;
+      box-shadow: 0 0 10px rgba(5, 150, 105, 0.8) !important;
+      width: 4px;
+    }
+    .cut-slot.wrong .cut-marker-line {
+      background-color: #e11d48 !important;
+      box-shadow: 0 0 10px rgba(225, 29, 72, 0.8) !important;
+      width: 4px;
+    }
+    .foot-box {
+      border: 2px dashed #d7ba90;
+      background: rgba(255, 253, 248, 0.98);
+      transition: all 0.25s ease;
+    }
+    .foot-box.correct {
+      border-color: #10b981;
+      background: #f0fdf4;
+    }
+    .foot-box.error {
+      border-color: #f43f5e;
+      background: #fff1f2;
+    }
+    #confettiCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 9999;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-amber-950 flex flex-col justify-between selection:bg-amber-200">
+
+  <canvas id="confettiCanvas"></canvas>
+
+  <!-- FEJLÉC -->
+  <header class="bg-gradient-to-r from-amber-950 via-amber-900 to-amber-950 text-amber-50 shadow-md sticky top-0 z-40 border-b-2 border-amber-700/60">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+      <div class="flex items-center gap-3">
+        <span class="text-3xl filter drop-shadow">📜</span>
+        <div>
+          <h1 class="font-renaissance text-base sm:text-2xl font-bold tracking-wide text-amber-100 flex items-center gap-2">
+            Időmértékes Verselés Mester
+            <span class="text-xs bg-amber-700/80 border border-amber-500/60 text-amber-200 font-sans px-2.5 py-0.5 rounded-full font-bold">6. osztály</span>
+          </h1>
+          <p class="text-xs text-amber-300 font-verse italic">Janus Pannonius: Pannónia dicsérete • 1. sor (Hexameter)</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button onclick="toggleModal('rulesModal')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-800 hover:bg-amber-700 text-amber-100 border border-amber-500/50 text-xs sm:text-sm font-bold shadow-sm transition">
+          <span>📖 Szabálytár</span>
+        </button>
+
+        <button onclick="resetCurrentLine()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-900/80 hover:bg-rose-800 text-rose-100 border border-rose-500/50 text-xs sm:text-sm font-bold shadow-sm transition" title="Sor újrakezdése">
+          <span>🔄 Újrakezdés</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- FŐ TARTALOM -->
+  <main class="max-w-6xl mx-auto px-3 sm:px-6 py-6 w-full flex-grow">
+
+    <!-- METRUM SÁV -->
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-4 bg-amber-100/70 p-2.5 rounded-2xl border border-amber-200">
+      <div class="text-xs sm:text-sm font-bold text-amber-950 font-verse italic">
+        „Eddig Itália földjén termettek csak a könyvek,”
+      </div>
+      <div class="text-xs font-bold text-amber-900 px-3 py-1 bg-amber-200/80 rounded-xl font-renaissance">
+        Forma: Hexameter (6 versláb)
+      </div>
+    </div>
+
+    <!-- 3 LÉPÉS PROGRESS BAR (Kattintható fázisugró sáv) -->
+    <div class="mb-5 grid grid-cols-3 gap-2 text-center text-xs sm:text-sm font-bold">
+      <button onclick="goToPhase(1)" id="stepTab1" class="py-2.5 px-2 rounded-xl transition border-2 flex items-center justify-center gap-1.5 bg-amber-800 text-white border-amber-900 shadow-sm cursor-pointer">
+        <span class="w-5 h-5 rounded-full bg-amber-950/40 text-[11px] flex items-center justify-center">1</span>
+        <span>✂️ Szótagvágás</span>
+      </button>
+      <button onclick="goToPhase(2)" id="stepTab2" class="py-2.5 px-2 rounded-xl transition border-2 flex items-center justify-center gap-1.5 bg-white text-stone-500 border-amber-200 cursor-pointer">
+        <span class="w-5 h-5 rounded-full bg-stone-100 text-[11px] flex items-center justify-center">2</span>
+        <span>⚖️ Szótaghosszúság (– / ∪)</span>
+      </button>
+      <button onclick="goToPhase(3)" id="stepTab3" class="py-2.5 px-2 rounded-xl transition border-2 flex items-center justify-center gap-1.5 bg-white text-stone-500 border-amber-200 cursor-pointer">
+        <span class="w-5 h-5 rounded-full bg-stone-100 text-[11px] flex items-center justify-center">3</span>
+        <span>🏛️ Verslábak (3-3)</span>
+      </button>
+    </div>
+
+    <!-- FŐ MUNKATERÜLET PANEL -->
+    <div class="parchment-card rounded-3xl p-4 sm:p-7">
+
+      <!-- ========================================================
+           1. FÁZIS: KATTINTÁSRA VÁGÓ FELÜLET (SZIGORÚAN EGY SORBAN)
+           ======================================================== -->
+      <section id="phase1Section" class="block">
+        <div class="text-center mb-4">
+          <span class="text-xs font-bold uppercase tracking-widest text-amber-800 bg-amber-100 px-3 py-1 rounded-full border border-amber-200">
+            1. Lépés: Oszd fel a sort ritmikai szótagokra!
+          </span>
+          <h2 class="text-base sm:text-lg font-bold text-amber-950 mt-2 font-renaissance">
+            Kattints a betűk közé a szótaghatárok kijelöléséhez!
+          </h2>
+          <p class="text-xs sm:text-sm text-stone-600 max-w-2xl mx-auto mt-1">
+            <strong>Szabály:</strong> Magánhangzótól a következő magánhangzó előtti mássalhangzó(k) végéig tart egy szótag! <em>(A szóhatároknál a szó végére és a szóköz utánra tett kattintást is elfogadja a rendszer!)</em>
+          </p>
+        </div>
+
+        <!-- Interaktív vágóasztal (EGYETLEN EGY BE NEM TÖRŐ HORIZONTÁLIS SORBAN) -->
+        <div class="bg-amber-50/70 p-4 sm:p-6 rounded-2xl border border-amber-200 shadow-inner my-4 overflow-x-auto text-center">
+          <div id="cuttingBoard" class="inline-flex flex-nowrap items-center justify-center whitespace-nowrap min-w-max px-2 py-2">
+            <!-- Dinamikusan renderelt betűk és elválasztók -->
+          </div>
+        </div>
+
+        <!-- Élő szótag-előnézet -->
+        <div class="mt-3 p-3 bg-white rounded-xl border border-amber-200 text-center">
+          <span class="text-xs font-bold text-amber-900 block mb-1 uppercase tracking-wide">Jelenleg kapott szótagjaid:</span>
+          <div id="cutPreview" class="flex flex-wrap items-center justify-center gap-1.5 min-h-[32px] text-xs sm:text-sm font-mono font-bold text-amber-950">
+            <span class="text-stone-400 italic">Kattints a fenti betűközökbe a szótagok kialakításához...</span>
+          </div>
+        </div>
+
+        <!-- 1. Fázis vezérlőgombok -->
+        <div class="mt-5 pt-4 border-t border-amber-200 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2 flex-wrap">
+            <button onclick="autoSolvePhase1()" class="text-xs text-amber-800 hover:text-amber-950 font-bold px-3 py-2 rounded-xl bg-amber-100 border border-amber-300 transition">
+              🪄 Helyes vágások betöltése
+            </button>
+            <button onclick="resetPhase1Cuts()" class="text-xs text-stone-600 hover:text-stone-900 font-semibold px-2 py-1 transition underline">
+              Vágások törlése
+            </button>
+          </div>
+          <button onclick="validatePhase1()" class="px-6 py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center gap-2">
+            <span>Szótagolás ellenőrzése ➔</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ========================================================
+           2. FÁZIS: SZÓTAGHOSSZÚSÁG BEJELÖLÉSE (– és ∪)
+           ======================================================== -->
+      <section id="phase2Section" class="hidden">
+        <div class="text-center mb-4">
+          <span class="text-xs font-bold uppercase tracking-widest text-amber-800 bg-amber-100 px-3 py-1 rounded-full border border-amber-200">
+            2. Lépés: Hosszú vagy rövid szótag?
+          </span>
+          <h2 class="text-base sm:text-lg font-bold text-amber-950 mt-2 font-renaissance">
+            Határozd meg a szótagok időtartamát!
+          </h2>
+          <p class="text-xs sm:text-sm text-stone-600 max-w-2xl mx-auto mt-1">
+            Kattints a szótagkártyákra a jelölés beállításához: <strong>–</strong> (Hosszú: hosszú mgh vagy 2+ msh torlódik) vagy <strong>∪</strong> (Rövid).
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4 bg-stone-50 p-2.5 rounded-2xl border border-stone-200">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-stone-700 uppercase tracking-wide">Eszköz:</span>
+            <button onclick="setTool('cycle')" id="toolBtnCycle" class="px-2.5 py-1.5 rounded-xl text-xs font-bold border transition bg-amber-800 text-white border-amber-900 shadow-sm">
+              🔄 Kattintásra váltó
+            </button>
+            <button onclick="setTool('long')" id="toolBtnLong" class="px-2.5 py-1.5 rounded-xl text-xs font-bold border transition bg-white text-amber-950 border-amber-300 hover:bg-amber-100">
+              – Csak Hosszú
+            </button>
+            <button onclick="setTool('short')" id="toolBtnShort" class="px-2.5 py-1.5 rounded-xl text-xs font-bold border transition bg-white text-sky-950 border-sky-300 hover:bg-sky-100">
+              ∪ Csak Rövid
+            </button>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="autoSolvePhase2()" class="text-xs text-amber-800 hover:text-amber-950 font-bold px-2.5 py-1.5 rounded-xl bg-amber-100 border border-amber-200">
+              🪄 Szótagok kitöltése
+            </button>
+          </div>
+        </div>
+
+        <!-- Szótagkártyák rácsa -->
+        <div id="moraGrid" class="flex flex-wrap justify-center gap-2.5 py-3">
+          <!-- JS generálja -->
+        </div>
+
+        <div class="mt-5 pt-4 border-t border-amber-200 flex flex-wrap items-center justify-between gap-3">
+          <button onclick="goToPhase(1)" class="text-xs text-stone-600 hover:text-stone-900 font-bold px-3 py-2">
+            ⬅️ Vissza a szótagvágáshoz
+          </button>
+          <button onclick="validatePhase2()" class="px-6 py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center gap-2">
+            <span>Szótagok ellenőrzése ➔</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ========================================================
+           3. FÁZIS: VERSLÁBAK KIVÁLASZTÁSA (2 SORBAN 3-3 LÁB)
+           ======================================================== -->
+      <section id="phase3Section" class="hidden">
+        <div class="text-center mb-4">
+          <span class="text-xs font-bold uppercase tracking-widest text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-200">
+            3. Lépés: Verslábak felismerése
+          </span>
+          <h2 class="text-base sm:text-lg font-bold text-amber-950 mt-2 font-renaissance">
+            Nevezd meg a verslábakat a két sorban (3-3 elrendezés)!
+          </h2>
+          <p class="text-xs sm:text-sm text-stone-600 max-w-2xl mx-auto mt-1">
+            Nézd meg a szótagok ritmusát, és válaszd ki a versláb pontos nevét a menüből!
+          </p>
+        </div>
+
+        <!-- 3-3 Versláb elrendezés -->
+        <div id="feetContainer" class="space-y-4">
+          <!-- JS generálja a két külön sorban a lábakat -->
+        </div>
+
+        <div class="mt-5 pt-4 border-t border-amber-200 flex flex-wrap items-center justify-between gap-3">
+          <button onclick="goToPhase(2)" class="text-xs text-stone-600 hover:text-stone-900 font-bold px-3 py-2">
+            ⬅️ Vissza a szótaghosszúsághoz
+          </button>
+          <div class="flex items-center gap-2">
+            <button onclick="autoSolvePhase3()" class="text-xs text-amber-800 hover:text-amber-950 font-bold px-3 py-2 rounded-xl bg-amber-100 border border-amber-300">
+              🪄 Verslábak megoldása
+            </button>
+            <button onclick="validatePhase3()" class="px-6 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center gap-2">
+              <span>Verslábak ellenőrzése ✨</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- VISSZAJELZŐ SÁV -->
+      <div id="feedbackBanner" class="mt-4 p-3 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-amber-50 text-amber-900 border border-amber-200">
+        ℹ️ Kövesd a 3 lépést a verssor sikeres ritmikai elemzéséhez!
+      </div>
+
+    </div>
+
+    <!-- HÁTTÉR INFORMÁCIÓ -->
+    <div class="mt-6 parchment-card rounded-2xl p-4 sm:p-5 bg-amber-50/60 border border-amber-200">
+      <h3 class="font-renaissance font-bold text-amber-900 text-sm sm:text-base mb-1.5 flex items-center gap-2">
+        <span>💡</span> A hexameter szerkezete
+      </h3>
+      <p class="text-xs sm:text-sm text-stone-700 font-verse leading-relaxed">
+        A hexameter 6 verslábból épül fel: daktilusokból (– ∪ ∪) és spondeusokból (– –). Az 5. versláb szinte mindig daktilus, míg a 6. versláb egy két szótagos csonka láb, amelynek utolsó szótagja a verssor végi természetes szünet miatt kötelezően hosszúnak számít.
+      </p>
+    </div>
+
+  </main>
+
+  <footer class="py-4 text-center text-xs text-amber-900/80 border-t border-amber-200 bg-amber-50/50">
+    Magyar nyelv és irodalom 6. osztály • Időmértékes verselés fonetikai szótagolással
+  </footer>
+
+  <!-- SZABÁLYOK MODAL -->
+  <div id="rulesModal" class="fixed inset-0 bg-stone-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+    <div class="parchment-card rounded-3xl max-w-2xl w-full p-5 sm:p-7 shadow-2xl max-h-[90vh] overflow-y-auto border-2 border-amber-400">
+      <div class="flex justify-between items-center pb-3 border-b border-amber-200 mb-4">
+        <h2 class="font-renaissance text-xl font-bold text-amber-950">A ritmikai szótagolás kisokosa</h2>
+        <button onclick="toggleModal('rulesModal')" class="w-8 h-8 rounded-full bg-stone-200 hover:bg-stone-300 font-bold text-stone-700 flex items-center justify-center text-lg leading-none">&times;</button>
+      </div>
+
+      <div class="space-y-4 text-xs sm:text-sm text-stone-800">
+        <div class="bg-amber-100/70 p-3.5 rounded-2xl border border-amber-300">
+          <strong class="text-amber-950 block text-sm mb-1 font-renaissance">Hogyan vágunk ritmikai szótagot?</strong>
+          <p>
+            A ritmikai szótag <strong>mindig magánhangzóval kezdődik, és az utána lévő összes mássalhangzót magával viszi a következő magánhangzó előtti pontig</strong>.
+            Ez a vágás átlép a szavak határain is!
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="p-3 bg-white rounded-xl border border-sky-200">
+            <span class="text-sky-900 font-bold text-sm block mb-1">∪ Rövid szótag</span>
+            <ul class="list-disc pl-4 space-y-1 text-stone-600">
+              <li>Rövid magánhangzó (a, e, i, o, ö, u, ü).</li>
+              <li>Utána legfeljebb <strong>1 mássalhangzó</strong> áll a következő magánhangzóig.</li>
+              <li><em>Például:</em> <code>ig</code>, <code>It</code>, <code>a f</code></li>
+            </ul>
+          </div>
+          <div class="p-3 bg-white rounded-xl border border-amber-200">
+            <span class="text-amber-950 font-bold text-sm block mb-1">– Hosszú szótag</span>
+            <ul class="list-disc pl-4 space-y-1 text-stone-600">
+              <li>Természeténél fogva hosszú: ha <strong>hosszú a magánhangzó</strong> (á, é, í, ó, ő, ú, ű): pl. <code>ál</code></li>
+              <li>Pozíció szerint hosszú: ha a rövid magánhangzó után <strong>legalább 2 mássalhangzó</strong> torlódik: pl. <code>Edd</code>, <code>öldj</code>, <code>ek cs</code></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="p-3 bg-amber-50 rounded-xl border border-amber-300">
+          <strong class="text-amber-900 block mb-1">A vizsgált verslábak:</strong>
+          <p class="mb-1"><strong>Daktilus:</strong> Egy hosszú és két rövid szótag kapcsolata (– ∪ ∪).</p>
+          <p><strong>Spondeus:</strong> Két hosszú szótag kapcsolata (– –).</p>
+        </div>
+      </div>
+
+      <div class="mt-5 text-right">
+        <button onclick="toggleModal('rulesModal')" class="px-5 py-2 bg-amber-800 hover:bg-amber-900 text-white font-bold rounded-xl text-xs sm:text-sm">
+          Értem!
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RÉSZLETES MAGYARÁZAT ("MIÉRT?") MODAL -->
+  <div id="whyModal" class="fixed inset-0 bg-stone-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+    <div class="parchment-card rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border-2 border-amber-400">
+      <div class="flex justify-between items-center pb-2 border-b border-amber-200 mb-3">
+        <h3 id="whyModalTitle" class="font-renaissance text-lg font-bold text-amber-950">Szótag elemzése</h3>
+        <button onclick="toggleModal('whyModal')" class="w-7 h-7 rounded-full bg-stone-200 hover:bg-stone-300 font-bold text-stone-700 flex items-center justify-center text-base leading-none">&times;</button>
+      </div>
+      <div id="whyModalBody" class="text-stone-800 text-xs sm:text-sm space-y-3 leading-relaxed">
+        <!-- Dinamikus szöveg -->
+      </div>
+      <div class="mt-4 text-right">
+        <button onclick="toggleModal('whyModal')" class="px-4 py-1.5 bg-amber-800 hover:bg-amber-900 text-white font-bold rounded-xl text-xs">
+          Rendben
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       ADATSTRUKTÚRA: 1. SOR (HEXAMETER)
+       ========================================================================== */
+    const LINE_DATA = {
+      text: "Eddig Itália földjén termettek csak a könyvek,",
+      row1Title: "1. sor: 1–3. versláb (Sor eleje)",
+      row2Title: "2. sor: 4–6. versláb (Sor végi zárlat)",
+      syllables: [
+        { text: "Edd", correctMora: "–", note: "Rövid 'E', de két mássalhangzó ('dd') áll utána = pozíció szerint HOSSZÚ (–)." },
+        { text: "ig", correctMora: "∪", note: "Rövid 'i', utána csak egyetlen 'g' áll a következő magánhangzóig ('I') = RÖVID (∪)." },
+        { text: "It", correctMora: "∪", note: "Rövid 'I', utána csak egyetlen 't' áll a következő magánhangzóig ('á') = RÖVID (∪)." },
+        { text: "ál", correctMora: "–", note: "Ékezetes, hosszú magánhangzó ('á') = természeténél fogva HOSSZÚ (–)." },
+        { text: "i", correctMora: "∪", note: "Rövid 'i', közvetlenül utána magánhangzó következik ('a') = RÖVID (∪)." },
+        { text: "a f", correctMora: "∪", note: "Rövid 'a', utána csak egyetlen 'f' áll a következő magánhangzóig ('ö') = RÖVID (∪)." },
+        { text: "öldj", correctMora: "–", note: "Rövid 'ö', de utána három mássalhangzó ('ldj') torlódik = pozíció szerint HOSSZÚ (–)." },
+        { text: "én t", correctMora: "–", note: "Hosszú magánhangzó ('é') és utána mássalhangzók ('n+t') = természeténél fogva HOSSZÚ (–)." },
+        { text: "erm", correctMora: "–", note: "Rövid 'e', utána két mássalhangzó ('rm') torlódik = pozíció szerint HOSSZÚ (–)." },
+        { text: "ett", correctMora: "–", note: "Rövid 'e', utána kettőzött mássalhangzó ('tt') áll = pozíció szerint HOSSZÚ (–)." },
+        { text: "ek cs", correctMora: "–", note: "Rövid 'e', de a szóhatáron átnyúló 'k cs' mássalhangzók torlódnak utána = pozíció szerint HOSSZÚ (–)." },
+        { text: "ak", correctMora: "∪", note: "Rövid 'a', utána csak egyetlen 'k' áll a következő magánhangzóig ('a') = RÖVID (∪)." },
+        { text: "a k", correctMora: "∪", note: "Rövid 'a', utána csak egyetlen 'k' áll a következő magánhangzóig ('ö') = RÖVID (∪)." },
+        { text: "önyv", correctMora: "–", note: "Rövid 'ö', de utána két mássalhangzó ('ny+v') áll = pozíció szerint HOSSZÚ (–)." },
+        { text: "ek", correctMora: "–", note: "Bár kiejtve rövid lenne, a verssor legutolsó szótagja a verstani hagyomány (ancipitális sorvég / sorvégi szünet) miatt MINDIG HOSSZÚKÉNT (–) számít!" }
+      ],
+      feetMapping: [
+        { index: 1, type: "daktilus", sylIndices: [0, 1, 2] },
+        { index: 2, type: "daktilus", sylIndices: [3, 4, 5] },
+        { index: 3, type: "spondeus", sylIndices: [6, 7] },
+        { index: 4, type: "spondeus", sylIndices: [8, 9] },
+        { index: 5, type: "daktilus", sylIndices: [10, 11, 12] },
+        { index: 6, type: "spondeus", sylIndices: [13, 14] }
+      ]
+    };
+
+    function buildCutRules(line) {
+      const fullText = line.text;
+      let runningIdx = 0;
+      const cutGroups = [];
+      const defaultCuts = [];
+
+      line.syllables.forEach((syl, sIdx) => {
+        const cleanSyl = syl.text.replace(/\s+/g, '');
+        let matched = 0;
+        while (runningIdx < fullText.length && matched < cleanSyl.length) {
+          if (fullText[runningIdx].toLowerCase() === cleanSyl[matched].toLowerCase()) {
+            matched++;
+          }
+          runningIdx++;
+        }
+
+        if (sIdx < line.syllables.length - 1) {
+          const group = new Set([runningIdx]);
+          if (runningIdx > 0 && fullText[runningIdx - 1] === ' ') group.add(runningIdx - 1);
+          if (runningIdx < fullText.length && fullText[runningIdx] === ' ') group.add(runningIdx + 1);
+          
+          cutGroups.push(Array.from(group));
+          defaultCuts.push(runningIdx);
+        }
+      });
+
+      return { fullText, cutGroups, defaultCuts };
+    }
+
+    const { fullText, cutGroups, defaultCuts } = buildCutRules(LINE_DATA);
+    LINE_DATA.fullText = fullText;
+    LINE_DATA.cutGroups = cutGroups;
+    LINE_DATA.defaultCuts = defaultCuts;
+
+    /* ÁLLAPOT */
+    let currentPhase = 1;
+    let unlockedPhase = 1;
+    let selectedTool = 'cycle';
+    let userCuts = new Set();
+    let userMoras = new Array(LINE_DATA.syllables.length).fill(null);
+    let userFeet = new Array(LINE_DATA.feetMapping.length).fill("");
+
+    window.addEventListener('DOMContentLoaded', () => {
+      goToPhase(1);
+    });
+
+    function goToPhase(phase) {
+      if (phase > unlockedPhase) {
+        setFeedback("Előbb fejezd be a megelőző lépést a továbbhaladáshoz!", "error");
+        return;
+      }
+      currentPhase = phase;
+
+      document.getElementById('phase1Section').classList.toggle('hidden', phase !== 1);
+      document.getElementById('phase2Section').classList.toggle('hidden', phase !== 2);
+      document.getElementById('phase3Section').classList.toggle('hidden', phase !== 3);
+
+      for (let p = 1; p <= 3; p++) {
+        const tab = document.getElementById(`stepTab${p}`);
+        if (p === phase) {
+          tab.className = "py-2.5 px-2 rounded-xl transition border-2 flex items-center justify-center gap-1.5 bg-amber-800 text-white border-amber-900 shadow-sm cursor-pointer";
+        } else if (p <= unlockedPhase) {
+          tab.className = "py-2.5 px-2 rounded-xl transition border-2 flex items-center justify-center gap-1.5 bg-emerald-100 text-emerald-900 border-emerald-300 cursor-pointer";
+        } else {
+          tab.className = "py-2.5 px-2 rounded-xl transition border-2 flex items-center justify-center gap-1.5 bg-white text-stone-400 border-amber-200 opacity-60 cursor-not-allowed";
+        }
+      }
+
+      if (phase === 1) renderPhase1();
+      else if (phase === 2) renderPhase2();
+      else if (phase === 3) renderPhase3();
+    }
+
+    /* 1. FÁZIS: VÁGÁS (EGYETLEN EGY SORBAN TARTVA) */
+    function renderPhase1() {
+      const board = document.getElementById('cuttingBoard');
+      board.innerHTML = '';
+
+      for (let i = 0; i < fullText.length; i++) {
+        const char = fullText[i];
+
+        if (char === ' ') {
+          const spBox = document.createElement('div');
+          spBox.className = 'word-spacer';
+          spBox.title = "Szóköz a szavak között";
+          board.appendChild(spBox);
+        } else {
+          const cBox = document.createElement('div');
+          cBox.className = 'char-box';
+          cBox.innerText = char;
+          board.appendChild(cBox);
+        }
+
+        if (i < fullText.length - 1) {
+          const cutIdx = i + 1;
+          const slot = document.createElement('div');
+          slot.id = `cut-slot-${cutIdx}`;
+          const isCut = userCuts.has(cutIdx);
+          slot.className = `cut-slot ${isCut ? 'active' : ''}`;
+          
+          slot.onclick = () => {
+            if (userCuts.has(cutIdx)) userCuts.delete(cutIdx);
+            else userCuts.add(cutIdx);
+            renderPhase1();
+          };
+
+          const lineElem = document.createElement('div');
+          lineElem.className = 'cut-marker-line';
+          slot.appendChild(lineElem);
+
+          board.appendChild(slot);
+        }
+      }
+      updateCutsPreview();
+    }
+
+    function updateCutsPreview() {
+      const preview = document.getElementById('cutPreview');
+      if (userCuts.size === 0) {
+        preview.innerHTML = `<span class="text-stone-400 italic">Kattints a fenti betűközökbe a szótagok kialakításához...</span>`;
+        return;
+      }
+
+      const sortedCuts = Array.from(userCuts).sort((a, b) => a - b);
+      let parts = [];
+      let lastIndex = 0;
+
+      sortedCuts.forEach(idx => {
+        parts.push(fullText.substring(lastIndex, idx));
+        lastIndex = idx;
+      });
+      parts.push(fullText.substring(lastIndex));
+
+      preview.innerHTML = '';
+      parts.forEach((p, idx) => {
+        const span = document.createElement('span');
+        span.className = "bg-amber-100 text-amber-950 px-2.5 py-1 rounded-lg border border-amber-300 shadow-2xs font-mono font-bold";
+        span.innerText = p.trim().length === 0 ? "—" : p;
+        preview.appendChild(span);
+        if (idx < parts.length - 1) {
+          const slash = document.createElement('span');
+          slash.className = "text-amber-800 font-black text-sm px-0.5 select-none";
+          slash.innerText = "/";
+          preview.appendChild(slash);
+        }
+      });
+    }
+
+    function resetPhase1Cuts() {
+      userCuts.clear();
+      renderPhase1();
+      setFeedback("Vágások törölve. Kezdd elölről a szótagok felosztását!", "info");
+    }
+
+    function autoSolvePhase1() {
+      userCuts = new Set(LINE_DATA.defaultCuts);
+      renderPhase1();
+      setFeedback("🪄 Helyes szótagvágások betöltve! Kattints a 'Szótagolás ellenőrzése' gombra a folytatáshoz.", "success");
+    }
+
+    function validatePhase1() {
+      for (let i = 1; i < fullText.length; i++) {
+        const slot = document.getElementById(`cut-slot-${i}`);
+        if (slot) slot.classList.remove('correct', 'wrong');
+      }
+
+      let usedIndices = new Set();
+      let missingCuts = 0;
+
+      LINE_DATA.cutGroups.forEach(group => {
+        const matched = group.filter(idx => userCuts.has(idx));
+        if (matched.length >= 1) {
+          matched.forEach(idx => {
+            usedIndices.add(idx);
+            const slot = document.getElementById(`cut-slot-${idx}`);
+            if (slot) slot.classList.add('correct');
+          });
+        } else {
+          missingCuts++;
+        }
+      });
+
+      let extraCuts = 0;
+      userCuts.forEach(idx => {
+        if (!usedIndices.has(idx)) {
+          extraCuts++;
+          const slot = document.getElementById(`cut-slot-${idx}`);
+          if (slot) slot.classList.add('wrong');
+        }
+      });
+
+      if (missingCuts === 0 && extraCuts === 0) {
+        unlockedPhase = Math.max(unlockedPhase, 2);
+        setFeedback("🎉 Bravó! Hibátlanul felosztottad a sort ritmikai szótagokra magánhangzótól magánhangzóig!", "success");
+        setTimeout(() => goToPhase(2), 900);
+      } else {
+        let msg = "❌ Még nem pontos a vágás: ";
+        if (missingCuts > 0) msg += `Hiányzik még ${missingCuts} db szótaghatár. `;
+        if (extraCuts > 0) msg += `${extraCuts} db felesleges vágójelet tettél (pirossal jelölve). `;
+        msg += "Ügyelj arra, hogy a szótag a magánhangzótól a következő magánhangzó előtti pontig tart!";
+        setFeedback(msg, "error");
+      }
+    }
+
+    /* 2. FÁZIS: SZÓTAGHOSSZÚSÁG */
+    function renderPhase2() {
+      const container = document.getElementById('moraGrid');
+      container.innerHTML = '';
+
+      LINE_DATA.syllables.forEach((syl, idx) => {
+        const val = userMoras[idx];
+        let symbol = '?';
+        let styleClasses = 'text-stone-400 bg-white border-stone-300';
+
+        if (val === '–') {
+          symbol = '—';
+          styleClasses = 'text-amber-950 bg-amber-200 border-amber-400 font-black shadow-xs text-xl';
+        } else if (val === '∪') {
+          symbol = '∪';
+          styleClasses = 'text-sky-950 bg-sky-200 border-sky-400 font-black shadow-xs text-lg';
+        }
+
+        const card = document.createElement('div');
+        card.className = "flex flex-col items-center p-2.5 rounded-2xl bg-amber-50/60 border border-amber-200 shadow-2xs hover:bg-amber-100/50 transition cursor-pointer min-w-[70px]";
+        card.onclick = () => handleMoraClick(idx);
+
+        card.innerHTML = `
+          <div id="moraBadge-${idx}" class="w-12 h-12 rounded-xl flex items-center justify-center border-2 ${styleClasses} transition transform active:scale-95">
+            <span class="leading-none select-none">${symbol}</span>
+          </div>
+          <span class="font-black text-sm sm:text-base text-stone-900 mt-2 font-mono px-2 py-0.5 rounded bg-white border border-stone-200 shadow-2xs">[ ${syl.text} ]</span>
+          <button onclick="event.stopPropagation(); openWhyModalBySylIdx(${idx})" class="text-xs text-amber-800 hover:text-amber-950 hover:underline mt-1.5 font-bold flex items-center gap-0.5">
+            <span>ℹ️</span> Miért?
+          </button>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    function handleMoraClick(idx) {
+      const current = userMoras[idx];
+      let next = null;
+
+      if (selectedTool === 'long') next = '–';
+      else if (selectedTool === 'short') next = '∪';
+      else {
+        if (!current) next = '–';
+        else if (current === '–') next = '∪';
+        else next = null;
+      }
+
+      userMoras[idx] = next;
+      renderPhase2();
+    }
+
+    function setTool(tool) {
+      selectedTool = tool;
+      const bCycle = document.getElementById('toolBtnCycle');
+      const bLong = document.getElementById('toolBtnLong');
+      const bShort = document.getElementById('toolBtnShort');
+
+      bCycle.className = `px-2.5 py-1.5 rounded-xl text-xs font-bold border transition ${tool === 'cycle' ? 'bg-amber-800 text-white border-amber-900 shadow-sm' : 'bg-white text-stone-700 border-stone-300'}`;
+      bLong.className = `px-2.5 py-1.5 rounded-xl text-xs font-bold border transition ${tool === 'long' ? 'bg-amber-800 text-white border-amber-900 shadow-sm' : 'bg-white text-amber-950 border-amber-300'}`;
+      bShort.className = `px-2.5 py-1.5 rounded-xl text-xs font-bold border transition ${tool === 'short' ? 'bg-sky-800 text-white border-sky-900 shadow-sm' : 'bg-white text-sky-950 border-sky-300'}`;
+    }
+
+    function autoSolvePhase2() {
+      LINE_DATA.syllables.forEach((s, idx) => {
+        userMoras[idx] = s.correctMora;
+      });
+      renderPhase2();
+      setFeedback("🪄 Helyes szótaghosszúságok kitöltve! Kattints az ellenőrzésre a verslábakhoz lépéshez.", "success");
+    }
+
+    function validatePhase2() {
+      let errors = 0;
+      let empty = 0;
+
+      LINE_DATA.syllables.forEach((s, idx) => {
+        const val = userMoras[idx];
+        const badge = document.getElementById(`moraBadge-${idx}`);
+        if (!val) {
+          empty++;
+          if (badge) badge.classList.add('ring-2', 'ring-amber-500');
+        } else if (val !== s.correctMora) {
+          errors++;
+          if (badge) badge.classList.add('ring-2', 'ring-rose-500', 'animate-pulse');
+        } else {
+          if (badge) badge.classList.remove('ring-2', 'ring-rose-500', 'animate-pulse', 'ring-amber-500');
+        }
+      });
+
+      if (empty > 0) {
+        setFeedback(`⚠️ Még nem jelölted be az összes szótag hosszúságát (${empty} még hiányzik)!`, "error");
+        return;
+      }
+
+      if (errors === 0) {
+        unlockedPhase = Math.max(unlockedPhase, 3);
+        setFeedback("🎉 Kitűnő! Minden szótag időtartamát (hosszú vagy rövid) hibátlanul megadtad!", "success");
+        setTimeout(() => goToPhase(3), 900);
+      } else {
+        setFeedback(`❌ Találtunk ${errors} hibás jelölést. Kattints a 'Miért?' gombokra segítségért!`, "error");
+      }
+    }
+
+    /* 3. FÁZIS: VERSLÁBAK */
+    function renderFootBox(foot, fIdx) {
+      const box = document.createElement('div');
+      box.id = `footCard-${fIdx}`;
+      box.className = "foot-box p-4 rounded-2xl flex flex-col justify-between shadow-xs";
+
+      const choice = userFeet[fIdx];
+
+      const optionsHtml = `
+        <option value="">-- Válassz verslábat --</option>
+        <option value="daktilus" ${choice === 'daktilus' ? 'selected' : ''}>Daktilus</option>
+        <option value="spondeus" ${choice === 'spondeus' ? 'selected' : ''}>Spondeus</option>
+      `;
+
+      let sylsHtml = '';
+      foot.sylIndices.forEach(sIdx => {
+        const syl = LINE_DATA.syllables[sIdx];
+        const isLong = syl.correctMora === '–';
+        sylsHtml += `
+          <div class="flex flex-col items-center flex-1">
+            <span class="w-8 h-8 rounded-lg flex items-center justify-center font-black ${isLong ? 'bg-amber-200 text-amber-950 text-base' : 'bg-sky-200 text-sky-950 text-sm'} shadow-2xs">
+              ${isLong ? '—' : '∪'}
+            </span>
+            <span class="font-bold text-xs sm:text-sm font-mono mt-1 text-stone-900">${syl.text}</span>
+          </div>
+        `;
+      });
+
+      box.innerHTML = `
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-black text-amber-900 uppercase tracking-wider">${foot.index}. versláb</span>
+            <span class="text-[11px] font-mono font-bold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full">${foot.sylIndices.length} szótag</span>
+          </div>
+          <select onchange="handleFootSelect(${fIdx}, this.value)" class="w-full text-xs sm:text-sm font-bold p-2.5 rounded-xl border border-amber-300 bg-white text-amber-950 focus:ring-2 focus:ring-amber-500 mb-3 shadow-xs">
+            ${optionsHtml}
+          </select>
+        </div>
+
+        <div class="flex items-center justify-around gap-2 bg-amber-50/80 p-2.5 rounded-xl border border-amber-200">
+          ${sylsHtml}
+        </div>
+      `;
+
+      return box;
+    }
+
+    function renderPhase3() {
+      const container = document.getElementById('feetContainer');
+      container.innerHTML = '';
+
+      const row1Wrap = document.createElement('div');
+      row1Wrap.className = 'bg-stone-50/80 p-4 rounded-2xl border border-stone-200 shadow-2xs';
+      row1Wrap.innerHTML = `
+        <div class="text-xs font-black text-amber-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <span>🔹</span> <span>${LINE_DATA.row1Title}</span>
+        </div>
+      `;
+      const row1Grid = document.createElement('div');
+      row1Grid.className = 'grid grid-cols-1 md:grid-cols-3 gap-4';
+      for (let i = 0; i < 3; i++) {
+        row1Grid.appendChild(renderFootBox(LINE_DATA.feetMapping[i], i));
+      }
+      row1Wrap.appendChild(row1Grid);
+      container.appendChild(row1Wrap);
+
+      const row2Wrap = document.createElement('div');
+      row2Wrap.className = 'bg-stone-50/80 p-4 rounded-2xl border border-stone-200 shadow-2xs';
+      row2Wrap.innerHTML = `
+        <div class="text-xs font-black text-amber-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <span>🔸</span> <span>${LINE_DATA.row2Title}</span>
+        </div>
+      `;
+      const row2Grid = document.createElement('div');
+      row2Grid.className = 'grid grid-cols-1 md:grid-cols-3 gap-4';
+      for (let i = 3; i < 6; i++) {
+        row2Grid.appendChild(renderFootBox(LINE_DATA.feetMapping[i], i));
+      }
+      row2Wrap.appendChild(row2Grid);
+      container.appendChild(row2Wrap);
+    }
+
+    function handleFootSelect(idx, val) {
+      userFeet[idx] = val;
+    }
+
+    function autoSolvePhase3() {
+      LINE_DATA.feetMapping.forEach((f, idx) => {
+        userFeet[idx] = f.type;
+      });
+      renderPhase3();
+      setFeedback("🪄 Helyes verslábak kiválasztva! Nyomj az ellenőrzésre.", "success");
+    }
+
+    function validatePhase3() {
+      let errors = 0;
+      let empty = 0;
+
+      LINE_DATA.feetMapping.forEach((f, idx) => {
+        const choice = userFeet[idx];
+        const card = document.getElementById(`footCard-${idx}`);
+        if (!choice) {
+          empty++;
+          if (card) card.className = "foot-box error p-4 rounded-2xl flex flex-col justify-between shadow-xs";
+        } else if (choice !== f.type) {
+          errors++;
+          if (card) card.className = "foot-box error p-4 rounded-2xl flex flex-col justify-between shadow-xs";
+        } else {
+          if (card) card.className = "foot-box correct p-4 rounded-2xl flex flex-col justify-between shadow-xs";
+        }
+      });
+
+      if (empty > 0) {
+        setFeedback(`⚠️ Még nem választottál minden verslábhoz nevet (${empty} még hiányzik)!`, "error");
+        return;
+      }
+
+      if (errors === 0) {
+        fireConfettiBurst();
+        setFeedback("🎉 Bravó! Hibátlanul azonosítottad a hexameter mind a 6 verslábát!", "success");
+      } else {
+        setFeedback(`❌ Még ${errors} versláb megnevezése téves. Figyeld a ritmust: Daktilus = — ∪ ∪, Spondeus = — —!`, "error");
+      }
+    }
+
+    /* SEGÉDFUNKCIÓK */
+    function resetCurrentLine() {
+      if (confirm("Biztosan elölről szeretnéd kezdeni az 1. sor elemzését?")) {
+        userCuts.clear();
+        userMoras.fill(null);
+        userFeet.fill("");
+        unlockedPhase = 1;
+        goToPhase(1);
+        setFeedback("🔄 A feladat újraindult az 1. lépéstől. Jó munkát!", "info");
+      }
+    }
+
+    function setFeedback(text, type = "info") {
+      const banner = document.getElementById('feedbackBanner');
+      banner.innerText = text;
+      if (type === "success") {
+        banner.className = "mt-4 p-3 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-emerald-100 text-emerald-950 border border-emerald-300";
+      } else if (type === "error") {
+        banner.className = "mt-4 p-3 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-rose-100 text-rose-950 border border-rose-300";
+      } else {
+        banner.className = "mt-4 p-3 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-amber-50 text-amber-900 border border-amber-200";
+      }
+    }
+
+    function toggleModal(id) {
+      document.getElementById(id).classList.toggle('hidden');
+    }
+
+    function openWhyModalBySylIdx(idx) {
+      const syl = LINE_DATA.syllables[idx];
+      const title = document.getElementById('whyModalTitle');
+      const body = document.getElementById('whyModalBody');
+
+      title.innerHTML = `Szótag ritmusa: <span class="font-mono bg-amber-200 px-2 py-0.5 rounded text-amber-950">"[ ${syl.text} ]"</span>`;
+      
+      const badge = syl.correctMora === '–' 
+        ? `<span class="bg-amber-100 text-amber-900 border border-amber-300 font-bold px-2 py-1 rounded-md text-sm">— HOSSZÚ szótag</span>`
+        : `<span class="bg-sky-100 text-sky-900 border border-sky-300 font-bold px-2 py-1 rounded-md text-sm">∪ RÖVID szótag</span>`;
+
+      body.innerHTML = `
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs uppercase font-bold text-stone-500">Időtartam:</span>
+          ${badge}
+        </div>
+        <div class="bg-white p-3 rounded-xl border border-stone-200 shadow-xs">
+          <h4 class="font-bold text-amber-900 text-xs uppercase mb-1">Ritmikai magyarázat:</h4>
+          <p class="text-stone-700 leading-relaxed">${syl.note}</p>
+        </div>
+        <div class="text-[11px] text-stone-600 italic bg-amber-50 p-2.5 rounded-lg border border-amber-200/70">
+          💡 <strong>Emlékeztető:</strong> A ritmikai szótag a magánhangzóval kezdődik és a következő magánhangzó előtti mássalhangzóig tart.
+        </div>
+      `;
+
+      toggleModal('whyModal');
+    }
+
+    /* Konfetti */
+    const canvas = document.getElementById('confettiCanvas');
+    const ctx = canvas.getContext('2d');
+    let confettiPieces = [];
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function fireConfettiBurst() {
+      const colors = ['#b45309', '#f59e0b', '#10b981', '#0284c7', '#ec4899', '#8b5cf6'];
+      for (let i = 0; i < 60; i++) {
+        confettiPieces.push({
+          x: canvas.width / 2 + (Math.random() * 200 - 100),
+          y: canvas.height * 0.65,
+          vx: (Math.random() - 0.5) * 12,
+          vy: -(Math.random() * 10 + 6),
+          size: Math.random() * 8 + 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rotation: Math.random() * 360,
+          rotSpeed: (Math.random() - 0.5) * 10,
+          opacity: 1
+        });
+      }
+      if (confettiPieces.length <= 60) requestAnimationFrame(renderConfetti);
+    }
+
+    function renderConfetti() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      confettiPieces.forEach((p) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.25;
+        p.rotation += p.rotSpeed;
+        p.opacity -= 0.007;
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rotation * Math.PI) / 180);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = Math.max(p.opacity, 0);
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+        ctx.restore();
+      });
+
+      confettiPieces = confettiPieces.filter(p => p.opacity > 0 && p.y < canvas.height + 50);
+      if (confettiPieces.length > 0) {
+        requestAnimationFrame(renderConfetti);
+      }
+    }
+  </script>
+</body>
+</html>
